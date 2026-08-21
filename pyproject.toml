@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "couponfinder"
+version = "0.1.0"
+description = "Crawl web pages and detect coupon-code naming patterns"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "requests>=2.31",
+    "beautifulsoup4>=4.12",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+render = ["playwright>=1.40"]
+
+[project.scripts]
+couponfinder = "couponfinder.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
