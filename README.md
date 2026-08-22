@@ -75,9 +75,10 @@ pytest
 
 ## Web UI
 
-`ui/` is a React + Vite app that browses the `results.csv` produced by the CLI.
-It reads the CSV live from the `files/` folder (no copy step needed), so run
-the CLI with `--output` (or the `config.ini` defaults) first to populate it.
+The web application is a React + Vite frontend deployed with Vercel Functions.
+Offers are stored in Supabase PostgreSQL. The UI loads offer metadata from
+`/api/offers`; it deliberately loads an individual code only after a visitor
+clicks **Claim Code**.
 
 ```bash
 cd ui
@@ -85,5 +86,35 @@ npm install
 npm run dev
 ```
 
-Open the printed local URL to search offers by state/city and reveal a coupon
-code with the "Claim Code" button.
+For local API development, install the Vercel CLI and run `vercel dev` from the
+repository root. Do not use `files/urls.txt` for the deployed app: paste URLs
+into the **Admin** tab instead.
+
+### Deploy to Vercel and Supabase
+
+1. In the Supabase SQL editor, run
+   `supabase/migrations/001_couponfinder.sql`.
+2. Create a Vercel project from this repository. The included `vercel.json`
+   builds `ui/` and deploys the Python files in `api/` as serverless functions.
+3. Add these Vercel environment variables:
+
+   ```text
+   DATABASE_URL=postgresql://...     # use the Supabase pooler connection string
+   DB_SCHEMA=coupons
+   DB_TABLE=gc_coupons
+   ADMIN_API_TOKEN=<long-random-secret>
+   ALLOWED_COUPON_HOSTS=offers.greatclips.com
+   ```
+
+4. In the deployed **Admin** tab, enter `ADMIN_API_TOKEN`, paste up to ten
+   allowed HTTPS URLs, and select **Fetch Coupons**. The protected
+   `/api/fetch-coupons` endpoint fetches raw HTML, extracts the offer data, and
+   upserts it into Supabase.
+
+Vercel serverless Python functions cannot run the project's Playwright browser
+workflow. The deployed Admin page therefore uses raw HTML only and may not
+capture coupon codes that appear only after JavaScript rendering or a
+redemption click.
+
+Keep `DATABASE_URL` and `ADMIN_API_TOKEN` only in deployment environment
+variables, never in `config.ini` or frontend `VITE_*` variables.

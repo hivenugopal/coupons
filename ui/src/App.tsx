@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { AdminPage } from './components/AdminPage';
 import { FilterBar } from './components/FilterBar';
 import { OffersTable } from './components/OffersTable';
-import { loadOffers } from './lib/csv';
+import { loadOffers } from './lib/offersApi';
 import type { Offer } from './types';
 import './App.css';
 
@@ -13,26 +14,24 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [selectedState, setSelectedState] = useState(ALL);
   const [selectedCity, setSelectedCity] = useState(ALL);
+  const [activeTab, setActiveTab] = useState<'offers' | 'admin'>('offers');
 
-  useEffect(() => {
-    let cancelled = false;
-
+  const reloadOffers = () => {
+    setStatus('loading');
+    setErrorMessage('');
     loadOffers()
       .then((loaded) => {
-        if (cancelled) return;
-        // Skip rows from failed crawls (no usable location/offer data).
-        setOffers(loaded.filter((offer) => !offer.error && offer.location));
+        setOffers(loaded);
         setStatus('ready');
       })
       .catch((err: unknown) => {
-        if (cancelled) return;
         setErrorMessage(err instanceof Error ? err.message : String(err));
         setStatus('error');
       });
+  };
 
-    return () => {
-      cancelled = true;
-    };
+  useEffect(() => {
+    reloadOffers();
   }, []);
 
   const states = useMemo(
@@ -64,23 +63,45 @@ function App() {
     <main className="app">
       <h1>Great Clips Coupon Finder</h1>
 
-      <FilterBar
-        states={states}
-        cities={cities}
-        selectedState={selectedState}
-        selectedCity={selectedCity}
-        onStateChange={handleStateChange}
-        onCityChange={setSelectedCity}
-      />
+      <div className="tab-bar">
+        <button
+          type="button"
+          className={`tab-button ${activeTab === 'offers' ? 'active' : ''}`}
+          onClick={() => setActiveTab('offers')}
+        >
+          Offers
+        </button>
+        <button
+          type="button"
+          className={`tab-button ${activeTab === 'admin' ? 'active' : ''}`}
+          onClick={() => setActiveTab('admin')}
+        >
+          Admin
+        </button>
+      </div>
 
-      {status === 'loading' && <p className="status-message">Loading offers&hellip;</p>}
-      {status === 'error' && (
-        <p className="status-message error">
-          Could not load results.csv: {errorMessage}. Run the couponfinder CLI with --output to
-          generate it.
-        </p>
+      {activeTab === 'admin' && <AdminPage onFetched={reloadOffers} />}
+
+      {activeTab === 'offers' && (
+        <>
+          <FilterBar
+            states={states}
+            cities={cities}
+            selectedState={selectedState}
+            selectedCity={selectedCity}
+            onStateChange={handleStateChange}
+            onCityChange={setSelectedCity}
+          />
+
+          {status === 'loading' && <p className="status-message">Loading offers&hellip;</p>}
+          {status === 'error' && (
+            <p className="status-message error">
+              Could not load offers: {errorMessage}.
+            </p>
+          )}
+          {status === 'ready' && <OffersTable offers={filteredOffers} />}
+        </>
       )}
-      {status === 'ready' && <OffersTable offers={filteredOffers} />}
     </main>
   );
 }

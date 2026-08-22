@@ -34,7 +34,7 @@ export function OffersTable({ offers }: OffersTableProps) {
             <td>{offer.price || '-'}</td>
             <td>{offer.expires || '-'}</td>
             <td>
-              <ClaimButton code={offer.code} />
+              <ClaimButton offerId={offer.id} hasCode={offer.hasCode} />
             </td>
           </tr>
         ))}

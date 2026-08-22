@@ -4,6 +4,89 @@
   padding: 32px 16px 64px;
 }
 
+.tab-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.tab-button {
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.tab-button.active {
+  background: #1a73e8;
+  color: #fff;
+  border-color: #1a73e8;
+}
+
+.admin-page {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.admin-page h2 {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.admin-help {
+  margin-bottom: 10px;
+  color: #555;
+}
+
+.admin-textarea {
+  width: 100%;
+  min-height: 120px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 14px;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.admin-token {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 360px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.admin-token input {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 8px;
+  font: inherit;
+  font-weight: 400;
+}
+
+.admin-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.admin-count {
+  color: #666;
+  font-size: 14px;
+}
+
+.admin-results {
+  margin-top: 12px;
+}
+
 .filter-bar {
   display: flex;
   gap: 24px;
@@ -84,4 +167,11 @@
 .no-code {
   color: #999;
   font-style: italic;
+}
+
+.claim-error {
+  display: block;
+  margin-top: 4px;
+  color: #b00020;
+  font-size: 12px;
 }

@@ -1,9 +1,7 @@
-/** A single row from couponfinder's results.csv (pipe-delimited). */
+/** Public offer data returned by the Vercel API; coupon codes are loaded on demand. */
 export interface Offer {
+  id: number;
   url: string;
-  code: string;
-  confidence: string;
-  source: string;
   price: string;
   location: string;
   storeName: string;
@@ -12,5 +10,5 @@ export interface Offer {
   city: string;
   state: string;
   expires: string;
-  error: string;
+  hasCode: boolean;
 }
