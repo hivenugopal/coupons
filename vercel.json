@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "npm --prefix ui ci",
   "buildCommand": "npm --prefix ui run build",
   "outputDirectory": "ui/dist",
   "functions": {
