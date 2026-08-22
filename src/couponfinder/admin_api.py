@@ -109,9 +109,12 @@ def _insert_rows_to_postgres(rows: list[dict[str, Any]], config: dict[str, str])
     ]
     values = [tuple(record.get(column) for column in columns) for record in records]
     placeholders = ", ".join(["%s"] * len(columns))
+    update_columns = ", ".join(
+        f"{column} = EXCLUDED.{column}" for column in columns if column not in {"url", "code", "location"}
+    )
     sql = (
-        f'INSERT INTO "{schema}"."{table}" '
-        f'({", ".join(columns)}) VALUES ({placeholders})'
+        f'INSERT INTO "{schema}"."{table}" ({", ".join(columns)}) VALUES ({placeholders}) '
+        f"ON CONFLICT (url, code, location) DO UPDATE SET {update_columns}"
     )
 
     with psycopg.connect(db_url) as conn:
