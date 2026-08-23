@@ -43,8 +43,18 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             self._send_json(HTTPStatus.OK, {"offers": list_public_offers()})
-        except Exception:
-            self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Could not load offers."})
+        except Exception as exc:
+            import traceback
+
+            traceback.print_exc()
+            message = "Could not load offers."
+            detail = str(exc)
+            if "DATABASE_URL" in detail:
+                message = "DATABASE_URL is not configured."
+            elif "psycopg" in detail.lower():
+                message = "Database driver is unavailable. Add a root requirements.txt and redeploy."
+            self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": message})
+
 
     def do_POST(self) -> None:  # noqa: N802
         self._send_json(HTTPStatus.METHOD_NOT_ALLOWED, {"error": "Use GET."})

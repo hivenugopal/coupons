@@ -83,6 +83,9 @@ def _connect() -> Any:
     except ImportError as exc:
         raise RuntimeError("The psycopg dependency is unavailable.") from exc
     database_url, _, _ = _database_settings()
+    if "sslmode=" not in database_url.lower():
+        joiner = "&" if "?" in database_url else "?"
+        database_url = f"{database_url}{joiner}sslmode=require"
     return psycopg.connect(database_url)
 
 
