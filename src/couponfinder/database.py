@@ -86,7 +86,8 @@ def _connect() -> Any:
     if "sslmode=" not in database_url.lower():
         joiner = "&" if "?" in database_url else "?"
         database_url = f"{database_url}{joiner}sslmode=require"
-    return psycopg.connect(database_url)
+    # Transaction pooler (port 6543 / PgBouncer) does not support prepared statements.
+    return psycopg.connect(database_url, prepare_threshold=None, connect_timeout=10)
 
 
 def insert_coupon_rows(rows: list[dict[str, Any]]) -> int:

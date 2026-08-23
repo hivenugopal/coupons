@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 import sys
+import traceback
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
@@ -13,6 +16,14 @@ from urllib.parse import parse_qs, urlparse
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from couponfinder.database import get_coupon_code, list_public_offers
+
+
+def _public_error_detail(exc: BaseException) -> str:
+    text = f"{type(exc).__name__}: {exc}"
+    database_url = os.getenv("DATABASE_URL", "")
+    if database_url:
+        text = text.replace(database_url, "[DATABASE_URL]")
+    return re.sub(r"(://[^:]+:)([^@]+)(@)", r"\1***\3", text)
 
 
 class handler(BaseHTTPRequestHandler):
@@ -44,16 +55,14 @@ class handler(BaseHTTPRequestHandler):
 
             self._send_json(HTTPStatus.OK, {"offers": list_public_offers()})
         except Exception as exc:
-            import traceback
-
             traceback.print_exc()
+            detail = _public_error_detail(exc)
             message = "Could not load offers."
-            detail = str(exc)
-            if "DATABASE_URL" in detail:
+            if "DATABASE_URL" in str(exc):
                 message = "DATABASE_URL is not configured."
-            elif "psycopg" in detail.lower():
-                message = "Database driver is unavailable. Add a root requirements.txt and redeploy."
-            self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": message})
+            elif "psycopg" in str(exc).lower() or "psycopg" in type(exc).__name__.lower():
+                message = "Database driver is unavailable."
+            self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": message, "detail": detail})
 
 
     def do_POST(self) -> None:  # noqa: N802
