@@ -27,6 +27,13 @@ def _public_error_detail(exc: BaseException) -> str:
 
 
 class handler(BaseHTTPRequestHandler):
+    def log_request(self, code: object = "-", size: object = "-") -> None:
+        extra = getattr(self, "_error_summary", "")
+        if extra:
+            self.log_message('"%s" %s %s %s', self.requestline, str(code), str(size), extra)
+            return
+        super().log_request(code, size)
+
     def _send_json(self, status: HTTPStatus, payload: object) -> None:
         body = json.dumps(payload, default=str).encode("utf-8")
         self.send_response(status)
@@ -37,6 +44,7 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:  # noqa: N802
+        self._error_summary = ""
         try:
             query = parse_qs(urlparse(self.path).query)
             code_for = query.get("code_for", [""])[0]
@@ -63,6 +71,8 @@ class handler(BaseHTTPRequestHandler):
             elif "psycopg" in str(exc).lower() or "psycopg" in type(exc).__name__.lower():
                 message = "Database driver is unavailable."
             db_logs = recent_db_logs()
+            self._error_summary = f"error={message} detail={detail} db_logs={db_logs}"
+            print("OFFERS_API_ERROR", self._error_summary, file=sys.stderr, flush=True)
             for line in db_logs:
                 print(line, file=sys.stderr, flush=True)
             self._send_json(
