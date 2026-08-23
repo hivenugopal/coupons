@@ -41,8 +41,13 @@ PRICE_PATTERN = re.compile(r"\$\s?\d+(?:\.\d{1,2})?(?:\s*off)?|\d+%\s*off", re.I
 EXPIRES_PATTERN = re.compile(r"expires\s+(\d{1,2}/\d{1,2}/\d{2,4})", re.IGNORECASE)
 
 # e.g. "Valid at Great Clips Eagle Eye Plaza at 4840 Asbury Rd in Dubuque, IA." or
-# "Valid only at participating Tulsa area Great Clips salons."
-LOCATION_PATTERN = re.compile(r"valid\s+(?:only\s+)?at\s+(.+?)(?:\.\s|\.$|$)", re.IGNORECASE)
+# "Valid only at participating Ft. Wayne area Great Clips salons."
+# Stop at a sentence-ending period, but not after abbreviations such as Ft. / St. / Ave.
+LOCATION_PATTERN = re.compile(
+    r"valid\s+(?:only\s+)?at\s+(.+?(?:salons?|,\s*[A-Za-z]{2}(?:\s*(?:&|/|,|\band\b)\s*[A-Za-z]{2})*))"
+    r"(?=\s*\.|$)",
+    re.IGNORECASE,
+)
 
 # Shown instead of a redeemable code/credential once a deal is no longer active.
 OFFER_ENDED_PATTERN = re.compile(r"we[\u2019']re sorry!?\s*this offer has ended\.?", re.IGNORECASE)
@@ -59,9 +64,10 @@ LOCATION_ADDRESS_PATTERN = re.compile(
 )
 
 # e.g. "participating Cincinnati area Great Clips salons" -> city/store, no street address.
-# The city portion may list more than one city, e.g. "Shreveport & Marshall area ... salons".
+# The city portion may list more than one city, e.g. "Shreveport & Marshall area ... salons",
+# and may include abbreviations such as "Ft. Wayne".
 LOCATION_AREA_PATTERN = re.compile(
-    r"(?:participating\s+)?(?P<city>[A-Za-z][A-Za-z\s&,/]*?)\s+area\s+(?P<store>.+?)\s+salons?\b",
+    r"(?:participating\s+)?(?P<city>[A-Za-z][A-Za-z.\s&,/]*?)\s+area\s+(?P<store>.+?)\s+salons?\b",
     re.IGNORECASE,
 )
 

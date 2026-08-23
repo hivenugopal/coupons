@@ -87,8 +87,35 @@ npm run dev
 ```
 
 For local API development, install the Vercel CLI and run `vercel dev` from the
-repository root. Do not use `files/urls.txt` for the deployed app: paste URLs
-into the **Admin** tab instead.
+repository root.
+
+### Local Playwright coupon reveal
+
+Use this separate local-only admin page when a merchant requires JavaScript or
+a **Print Coupon** click before revealing a code. It loads `.env`, runs
+Playwright on your machine, then upserts the extracted rows into the same
+Supabase table used by the deployed app.
+
+```bash
+pip install -e ".[render]"
+python -m playwright install chromium
+python -m couponfinder.admin_api
+```
+
+On Windows, pip may install `playwright.exe` and `couponfinder-admin-api.exe` into
+`%AppData%\Python\Python314\Scripts`, which is often not on PATH. The `python -m`
+commands above work without changing PATH.
+
+Open <http://127.0.0.1:8000/fetch-coupons>. Leave **Render page** and
+**Insert into DB** selected. Set **Click selector** to the Print Coupon
+button's CSS selector and **Wait selector** to the selector for the revealed
+code, then check the confirmation box before processing.
+
+Inspect the merchant page with browser DevTools to identify those selectors.
+Clicking Print Coupon can redeem, print, or invalidate a one-time offer; use
+this workflow only when that action is intended and permitted. On success, the
+local server upserts rows into `coupons.gc_coupons`; refresh the deployed site
+to see the stored offer.
 
 ### Deploy to Vercel and Supabase
 
@@ -114,7 +141,8 @@ into the **Admin** tab instead.
 Vercel serverless Python functions cannot run the project's Playwright browser
 workflow. The deployed Admin page therefore uses raw HTML only and may not
 capture coupon codes that appear only after JavaScript rendering or a
-redemption click.
+redemption click. Use the local Playwright coupon reveal workflow above for
+those offers.
 
 Keep `DATABASE_URL` and `ADMIN_API_TOKEN` only in deployment environment
 variables, never in `config.ini` or frontend `VITE_*` variables.

@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-import datetime as dt
 import json
 import os
-import re
 from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.parse import parse_qs
 from typing import Any
 
 from .cli import CSV_FIELDNAMES, _load_config, _write_csv
 from .crawler import FetchError, fetch_html, fetch_rendered_html
+from .database import insert_coupon_rows
 from .extractor import extract_coupon_codes, extract_offer_details
 
 
@@ -28,101 +28,41 @@ def _as_bool(value: Any, default: bool = True) -> bool:
     return default
 
 
-def _normalize_expiry_date(value: str) -> str | None:
-    value = (value or "").strip()
-    if not value:
-        return None
-    for pattern in ("%m/%d/%Y", "%m/%d/%y"):
-        try:
-            parsed = dt.datetime.strptime(value, pattern).date()
-            return parsed.isoformat()
-        except ValueError:
+def _load_local_env(path: str = ".env") -> None:
+    """Load local secrets without overriding variables explicitly exported by the shell."""
+    env_path = Path(path)
+    if not env_path.exists():
+        return
+    for raw_line in env_path.read_text(encoding="utf-8-sig").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
             continue
-    return None
+        name, value = line.split("=", 1)
+        name = name.strip()
+        if name and name not in os.environ:
+            os.environ[name] = value.strip().strip('"').strip("'")
 
 
-def _rows_to_db_records(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    records: list[dict[str, Any]] = []
-    for row in rows:
-        records.append(
-            {
-                "url": row.get("url", ""),
-                "code": row.get("code", ""),
-                "confidence": row.get("confidence", ""),
-                "source": row.get("source", ""),
-                "price": row.get("price", ""),
-                "location": row.get("location", ""),
-                "store_name": row.get("store_name", ""),
-                "address_line1": row.get("address_line1", ""),
-                "address_line2": row.get("address_line2", ""),
-                "city": row.get("city", ""),
-                "state": row.get("state", ""),
-                "expires": _normalize_expiry_date(row.get("expires", "")),
-                "error": row.get("error", ""),
-                "status": "failed" if row.get("error") else "fetched",
-            }
-        )
-    return records
+def _insert_rows_to_postgres(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Upsert extracted rows using the same database path as the deployed API."""
+    records_inserted = insert_coupon_rows(rows)
+    return {
+        "schema": os.getenv("DB_SCHEMA", "coupons"),
+        "table": os.getenv("DB_TABLE", "gc_coupons"),
+        "records_inserted": records_inserted,
+    }
 
 
-_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-
-
-def _safe_identifier(value: str, kind: str) -> str:
-    cleaned = (value or "").strip()
-    if not cleaned:
-        raise ValueError(f"Database {kind} is empty")
-    if not _IDENTIFIER_PATTERN.fullmatch(cleaned):
-        raise ValueError(f"Invalid database {kind}: {cleaned!r}")
-    return cleaned
-
-
-def _insert_rows_to_postgres(rows: list[dict[str, Any]], config: dict[str, str]) -> dict[str, Any]:
-    try:
-        import psycopg
-    except ImportError as exc:
-        raise ValueError("Missing dependency 'psycopg'. Install project dependencies again.") from exc
-
-    db_url = os.getenv("DATABASE_URL", "").strip() or config.get("database-url", "").strip()
-    if not db_url:
-        raise ValueError("Database URL is not configured. Set DATABASE_URL or config.ini database-url.")
-
-    schema = _safe_identifier(os.getenv("DB_SCHEMA", "").strip() or config.get("db-schema", "coupons"), "schema")
-    table = _safe_identifier(os.getenv("DB_TABLE", "").strip() or config.get("db-table", "gc_coupons"), "table")
-
-    records = _rows_to_db_records(rows)
-    columns = [
-        "url",
-        "code",
-        "confidence",
-        "source",
-        "price",
-        "location",
-        "store_name",
-        "address_line1",
-        "address_line2",
-        "city",
-        "state",
-        "expires",
-        "error",
-        "status",
-    ]
-    values = [tuple(record.get(column) for column in columns) for record in records]
-    placeholders = ", ".join(["%s"] * len(columns))
-    update_columns = ", ".join(
-        f"{column} = EXCLUDED.{column}" for column in columns if column not in {"url", "code", "location"}
-    )
-    sql = (
-        f'INSERT INTO "{schema}"."{table}" ({", ".join(columns)}) VALUES ({placeholders}) '
-        f"ON CONFLICT (url, code, location) DO UPDATE SET {update_columns}"
-    )
-
-    with psycopg.connect(db_url) as conn:
-        with conn.cursor() as cur:
-            cur.executemany(sql, values)
-        conn.commit()
-
-    return {"schema": schema, "table": table, "records_inserted": len(records)}
+def _offer_preview(row: dict[str, Any]) -> dict[str, str]:
+    """Public fields shown in the local admin JSON after a URL is processed."""
+    return {
+        "coupon": row.get("code", "") or "",
+        "price": row.get("price", "") or "",
+        "address_line1": row.get("address_line1", "") or "",
+        "address_line2": row.get("address_line2", "") or "",
+        "city": row.get("city", "") or "",
+        "state": row.get("state", "") or "",
+    }
 
 
 def _render_fetch_page(result: dict[str, Any] | None = None, error_message: str = "") -> str:
@@ -155,7 +95,8 @@ def _render_fetch_page(result: dict[str, Any] | None = None, error_message: str 
   </head>
   <body>
     <h1>Fetch Coupons</h1>
-    <p class=\"hint\">Paste one URL per line. This calls the backend crawler, appends to CSV, and inserts rows into your PostgreSQL table.</p>
+    <p class=\"hint\">This local-only tool opens a browser, appends results to CSV, and upserts them into Supabase.</p>
+    <p class=\"hint\"><strong>Warning:</strong> clicking Print Coupon can redeem or invalidate a one-time offer. Confirm only when you intend to reveal the offer.</p>
     {error_html}
     <form method=\"post\" action=\"/fetch-coupons\">
       <textarea name=\"urls_text\" placeholder=\"https://offers.greatclips.com/vqZhNYR&#10;https://offers.greatclips.com/DRd0nhA\"></textarea>
@@ -167,6 +108,9 @@ def _render_fetch_page(result: dict[str, Any] | None = None, error_message: str 
       <div class=\"row\">
         <label>Click selector: <input type=\"text\" name=\"click_selector\" value=\"#redemption\" /></label>
         <label>Wait selector: <input type=\"text\" name=\"wait_selector\" value=\"#credential-code\" /></label>
+      </div>
+      <div class=\"row\">
+        <label><input type=\"checkbox\" name=\"confirm_reveal\" value=\"1\" /> I understand this click may redeem or invalidate an offer.</label>
       </div>
       <button type=\"submit\">Process URLs</button>
     </form>
@@ -195,7 +139,13 @@ def _build_rows_for_url(
             html = fetch_html(url, timeout=timeout)
     except FetchError as exc:
         row = {field: "" for field in CSV_FIELDNAMES} | {"url": url, "error": str(exc)}
-        return [row], {"url": url, "ok": False, "error": str(exc), "rows_written": 1}
+        return [row], {
+            "url": url,
+            "ok": False,
+            "error": str(exc),
+            "rows_written": 1,
+            "offers": [_offer_preview(row)],
+        }
 
     codes = extract_coupon_codes(html, url=url)
     details_list = extract_offer_details(html, url=url)
@@ -225,6 +175,7 @@ def _build_rows_for_url(
         "ok": True,
         "codes_found": len(codes),
         "rows_written": len(rows),
+        "offers": [_offer_preview(row) for row in rows],
     }
 
 
@@ -236,11 +187,16 @@ def run_fetch(
     click_selector: str | None = "#redemption",
     output_file: str | None = None,
     insert_db: bool = True,
+    confirm_reveal: bool = False,
 ) -> dict[str, Any]:
     config = _load_config("config.ini")
     output_path = output_file or config.get("output-file")
     if not output_path:
         raise ValueError("No output file configured. Set output-file in config.ini or pass output_file.")
+    if click_selector and not confirm_reveal:
+        raise ValueError(
+            "Confirm the reveal action before clicking a coupon button; it may redeem or invalidate a one-time offer."
+        )
 
     deduped_urls = list(dict.fromkeys(url.strip() for url in urls if url and url.strip()))
     if not deduped_urls:
@@ -260,10 +216,11 @@ def run_fetch(
         "urls_received": len(urls),
         "urls_processed": len(deduped_urls),
         "rows_appended": len(all_rows),
+        "offers": [_offer_preview(row) for row in all_rows],
         "results": per_url,
     }
     if insert_db:
-        payload["database"] = _insert_rows_to_postgres(all_rows, config)
+        payload["database"] = _insert_rows_to_postgres(all_rows)
     return payload
 
 
@@ -332,6 +289,7 @@ class _Handler(BaseHTTPRequestHandler):
                     "timeout": form.get("timeout", ["10"])[0],
                     "render": "render" in form,
                     "insert_db": "insert_db" in form,
+                    "confirm_reveal": "confirm_reveal" in form,
                     "wait_selector": form.get("wait_selector", ["#credential-code"])[0],
                     "click_selector": form.get("click_selector", ["#redemption"])[0],
                 }
@@ -344,6 +302,7 @@ class _Handler(BaseHTTPRequestHandler):
                 timeout=float(payload.get("timeout", 10.0)),
                 render=_as_bool(payload.get("render", True)),
                 insert_db=_as_bool(payload.get("insert_db", True)),
+                confirm_reveal=_as_bool(payload.get("confirm_reveal", False), default=False),
                 wait_selector=payload.get("wait_selector", "#credential-code"),
                 click_selector=payload.get("click_selector", "#redemption"),
                 output_file=payload.get("output_file"),
@@ -360,9 +319,10 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 def main(host: str = "127.0.0.1", port: int = 8000) -> int:
+    _load_local_env()
     server = ThreadingHTTPServer((host, port), _Handler)
     print(f"couponfinder admin API listening at http://{host}:{port}")
-    print("POST /fetch-coupons with JSON: {\"urls\": [\"https://...\"]}")
+    print("Open /fetch-coupons to use the local Playwright reveal workflow.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

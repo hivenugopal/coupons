@@ -142,6 +142,20 @@ def test_extract_offer_details_splits_generic_area_location():
     assert details.state is None
 
 
+def test_extract_offer_details_keeps_abbreviated_city_names():
+    html = (
+        "<p>Get a great student haircut for $9.99 only at participating Ft. Wayne area "
+        "Great Clips salons.</p>"
+        "<p>Valid only at participating Ft. Wayne area Great Clips salons. Not valid with "
+        "any other offer. Offer expires 08/28/2026.</p>"
+    )
+    details = extract_offer_details(html, url="https://offers.greatclips.com/OloluXg")[0]
+    assert details.location == "participating Ft. Wayne area Great Clips salons"
+    assert details.city == "Ft. Wayne"
+    assert details.store_name == "Great Clips"
+    assert details.price == "$9.99"
+
+
 def test_extract_offer_details_splits_multi_city_location_into_separate_entries():
     html = "<p>Valid only at participating Shreveport & Marshall area Great Clips salons.</p>"
     details_list = extract_offer_details(html, url="https://example.com")

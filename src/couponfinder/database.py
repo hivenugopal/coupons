@@ -96,21 +96,30 @@ def rows_to_db_records(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
+def _env_identifier(name: str, default: str, kind: str) -> str:
+    raw = os.getenv(name, default)
+    cleaned = (raw or "").strip().strip('"').strip("'")
+    if _IDENTIFIER_PATTERN.fullmatch(cleaned):
+        return cleaned
+    _db_log(
+        f"settings: {name} is not a valid {kind} identifier "
+        f"(looks_like_url={cleaned.lower().startswith(('postgres', 'http'))}); using {default!r}"
+    )
+    return default
+
+
 def _database_settings() -> tuple[str, str, str]:
     database_url = os.getenv("DATABASE_URL", "").strip()
-    raw_schema = os.getenv("DB_SCHEMA", "coupons")
-    raw_table = os.getenv("DB_TABLE", "gc_coupons")
+    schema = _env_identifier("DB_SCHEMA", "coupons", "schema")
+    table = _env_identifier("DB_TABLE", "gc_coupons", "table")
     _db_log(
         "settings: "
         f"DATABASE_URL_set={bool(database_url)} "
-        f"DB_SCHEMA={raw_schema!r} DB_TABLE={raw_table!r}"
+        f"schema={schema} table={table}"
     )
     if not database_url:
         _db_log("settings: DATABASE_URL is missing or empty")
         raise ValueError("DATABASE_URL is not configured.")
-
-    schema = _safe_identifier(raw_schema, "schema")
-    table = _safe_identifier(raw_table, "table")
     return database_url, schema, table
 
 
@@ -141,6 +150,11 @@ def _connect() -> Any:
     )
     if not summary["host"]:
         _db_log("connect: URL did not parse a host; check password URL-encoding")
+    if summary["host"] and "pooler.supabase.com" in summary["host"] and summary["user"] == "postgres":
+        _db_log(
+            "connect: pooler URLs must use user postgres.<project-ref>, not postgres; "
+            "copy the Transaction pooler URI from Supabase"
+        )
     if "sslmode=" not in database_url.lower():
         joiner = "&" if "?" in database_url else "?"
         database_url = f"{database_url}{joiner}sslmode=require"
@@ -179,8 +193,16 @@ def insert_coupon_rows(rows: list[dict[str, Any]]) -> int:
         f'INSERT INTO "{schema}"."{table}" ({", ".join(_OFFER_COLUMNS)}) VALUES ({placeholders}) '
         f'ON CONFLICT (url, code, location) DO UPDATE SET {update_columns}'
     )
+    urls = list(dict.fromkeys(record["url"] for record in records if record.get("url")))
     with _connect() as conn:
         with conn.cursor() as cursor:
+            if urls:
+                # A re-fetch can correct a truncated location; the unique key includes
+                # location, so previous rows for these URLs must be replaced.
+                cursor.execute(
+                    f'DELETE FROM "{schema}"."{table}" WHERE url = ANY(%s)',
+                    (urls,),
+                )
             cursor.executemany(sql, values)
         conn.commit()
     _db_log(f"insert: committed {len(records)} records")

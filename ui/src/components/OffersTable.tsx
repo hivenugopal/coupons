@@ -6,10 +6,13 @@ interface OffersTableProps {
 }
 
 function formatLocation(offer: Offer): string {
-  const parts = [offer.storeName, offer.addressLine1, offer.addressLine2].filter(Boolean);
-  const line = parts.join(', ');
-  const cityState = [offer.city, offer.state].filter(Boolean).join(', ');
-  return [line, cityState].filter(Boolean).join(' \u2014 ') || offer.location || '-';
+  if (offer.addressLine1 || offer.addressLine2) {
+    const parts = [offer.storeName, offer.addressLine1, offer.addressLine2].filter(Boolean);
+    const line = parts.join(', ');
+    const cityState = [offer.city, offer.state].filter(Boolean).join(', ');
+    return [line, cityState].filter(Boolean).join(' \u2014 ') || offer.location || '-';
+  }
+  return offer.location || [offer.storeName, offer.city, offer.state].filter(Boolean).join(' \u2014 ') || '-';
 }
 
 export function OffersTable({ offers }: OffersTableProps) {
