@@ -15,7 +15,7 @@ from urllib.parse import parse_qs, urlparse
 # The Vercel function bundle includes src/ through vercel.json.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from couponfinder.database import get_coupon_code, list_public_offers
+from couponfinder.database import get_coupon_code, list_public_offers, recent_db_logs
 
 
 def _public_error_detail(exc: BaseException) -> str:
@@ -62,7 +62,13 @@ class handler(BaseHTTPRequestHandler):
                 message = "DATABASE_URL is not configured."
             elif "psycopg" in str(exc).lower() or "psycopg" in type(exc).__name__.lower():
                 message = "Database driver is unavailable."
-            self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": message, "detail": detail})
+            db_logs = recent_db_logs()
+            for line in db_logs:
+                print(line, file=sys.stderr, flush=True)
+            self._send_json(
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                {"error": message, "detail": detail, "db_logs": db_logs},
+            )
 
 
     def do_POST(self) -> None:  # noqa: N802
