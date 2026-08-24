@@ -15,7 +15,7 @@ from urllib.parse import parse_qs, urlparse
 # The Vercel function bundle includes src/ through vercel.json.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from couponfinder.database import get_coupon_code, list_public_offers, recent_db_logs
+from couponfinder.database import get_claim_details, list_offer_locations, list_public_offers, recent_db_logs
 
 
 def _public_error_detail(exc: BaseException) -> str:
@@ -54,14 +54,29 @@ class handler(BaseHTTPRequestHandler):
                 except ValueError:
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": "code_for must be a numeric offer id."})
                     return
-                code = get_coupon_code(offer_id)
-                if not code:
+                details = get_claim_details(offer_id)
+                if not details:
                     self._send_json(HTTPStatus.NOT_FOUND, {"error": "Coupon code not found."})
                     return
-                self._send_json(HTTPStatus.OK, {"code": code})
+                self._send_json(HTTPStatus.OK, details)
                 return
 
-            self._send_json(HTTPStatus.OK, {"offers": list_public_offers()})
+            state = (query.get("state", [""])[0] or "").strip()
+            city = (query.get("city", [""])[0] or "").strip()
+            if state and city:
+                self._send_json(HTTPStatus.OK, {"offers": list_public_offers(state, city)})
+                return
+
+            pairs = list_offer_locations()
+            cities_by_state: dict[str, list[str]] = {}
+            for pair in pairs:
+                cities_by_state.setdefault(pair["state"], [])
+                if pair["city"] not in cities_by_state[pair["state"]]:
+                    cities_by_state[pair["state"]].append(pair["city"])
+            self._send_json(
+                HTTPStatus.OK,
+                {"states": sorted(cities_by_state), "citiesByState": cities_by_state},
+            )
         except Exception as exc:
             traceback.print_exc()
             detail = _public_error_detail(exc)

@@ -7,8 +7,6 @@ interface FilterBarProps {
   onCityChange: (city: string) => void;
 }
 
-const ALL = 'All';
-
 export function FilterBar({
   states,
   cities,
@@ -22,7 +20,7 @@ export function FilterBar({
       <label className="filter-field">
         <span>State</span>
         <select value={selectedState} onChange={(e) => onStateChange(e.target.value)}>
-          <option value={ALL}>All states</option>
+          <option value="">Select a state</option>
           {states.map((state) => (
             <option key={state} value={state}>
               {state}
@@ -33,8 +31,12 @@ export function FilterBar({
 
       <label className="filter-field">
         <span>City</span>
-        <select value={selectedCity} onChange={(e) => onCityChange(e.target.value)}>
-          <option value={ALL}>All cities</option>
+        <select
+          value={selectedCity}
+          onChange={(e) => onCityChange(e.target.value)}
+          disabled={!selectedState}
+        >
+          <option value="">Select a city</option>
           {cities.map((city) => (
             <option key={city} value={city}>
               {city}
@@ -45,5 +47,3 @@ export function FilterBar({
     </div>
   );
 }
-
-export { ALL as ALL_OPTION };

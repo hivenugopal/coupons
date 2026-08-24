@@ -33,9 +33,11 @@ ALTER TABLE coupons.gc_coupons
 CREATE UNIQUE INDEX IF NOT EXISTS gc_coupons_id_key
   ON coupons.gc_coupons (id);
 
--- Supports the crawler's idempotent URL/code/location write operation.
-CREATE UNIQUE INDEX IF NOT EXISTS gc_coupons_url_code_location_key
-  ON coupons.gc_coupons (url, code, location);
+-- Supports one active (fetched) row per URL/code/location; inactive history is kept.
+DROP INDEX IF EXISTS coupons.gc_coupons_url_code_location_key;
+CREATE UNIQUE INDEX IF NOT EXISTS gc_coupons_url_code_location_active_key
+  ON coupons.gc_coupons (url, code, location)
+  WHERE status = 'fetched';
 
 CREATE INDEX IF NOT EXISTS gc_coupons_public_offers_index
   ON coupons.gc_coupons (status, expires, state, city);

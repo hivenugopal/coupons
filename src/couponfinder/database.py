@@ -40,9 +40,6 @@ def recent_db_logs() -> list[str]:
     return list(_DB_DEBUG_EVENTS)
 
 
-recent_db_logs = recent_db_logs
-
-
 def _reset_db_logs() -> None:
     _DB_DEBUG_EVENTS.clear()
 
@@ -175,7 +172,7 @@ def _connect() -> Any:
 
 
 def insert_coupon_rows(rows: list[dict[str, Any]]) -> int:
-    """Insert extraction rows, updating a matching URL/code/location record."""
+    """Insert extraction rows. If a URL was fetched before, mark old rows inactive."""
     _reset_db_logs()
     if not rows:
         _db_log("insert: skipped empty row list")
@@ -186,76 +183,104 @@ def insert_coupon_rows(rows: list[dict[str, Any]]) -> int:
     records = rows_to_db_records(rows)
     values = [tuple(record[column] for column in _OFFER_COLUMNS) for record in records]
     placeholders = ", ".join(["%s"] * len(_OFFER_COLUMNS))
-    update_columns = ", ".join(
-        f"{column} = EXCLUDED.{column}" for column in _OFFER_COLUMNS if column not in {"url", "code", "location"}
-    )
     sql = (
-        f'INSERT INTO "{schema}"."{table}" ({", ".join(_OFFER_COLUMNS)}) VALUES ({placeholders}) '
-        f'ON CONFLICT (url, code, location) DO UPDATE SET {update_columns}'
+        f'INSERT INTO "{schema}"."{table}" ({", ".join(_OFFER_COLUMNS)}) VALUES ({placeholders})'
     )
     urls = list(dict.fromkeys(record["url"] for record in records if record.get("url")))
     with _connect() as conn:
         with conn.cursor() as cursor:
             if urls:
-                # A re-fetch can correct a truncated location; the unique key includes
-                # location, so previous rows for these URLs must be replaced.
                 cursor.execute(
-                    f'DELETE FROM "{schema}"."{table}" WHERE url = ANY(%s)',
+                    f'UPDATE "{schema}"."{table}" '
+                    "SET status = 'inactive', updated_at = NOW() "
+                    "WHERE url = ANY(%s) AND status <> 'inactive'",
                     (urls,),
                 )
+                _db_log(f"insert: marked {cursor.rowcount} existing row(s) inactive for {len(urls)} URL(s)")
             cursor.executemany(sql, values)
         conn.commit()
-    _db_log(f"insert: committed {len(records)} records")
+    _db_log(f"insert: committed {len(records)} new records")
     return len(records)
 
 
-def list_public_offers() -> list[dict[str, Any]]:
-    """Return offer details without coupon codes; codes are fetched on demand."""
+_ACTIVE_OFFER_FILTER = (
+    "status = 'fetched' AND COALESCE(status, '') <> 'inactive' AND error = '' "
+    "AND location <> '' AND code IS NOT NULL AND BTRIM(code) <> ''"
+)
+
+
+def list_offer_locations() -> list[dict[str, str]]:
+    """Return distinct active cities grouped by state for the offers picker."""
     _reset_db_logs()
     _, schema, table = _database_settings()
-    _db_log(f"list_public_offers: querying {schema}.{table}")
+    sql = (
+        f'SELECT DISTINCT state, city FROM "{schema}"."{table}" '
+        f"WHERE {_ACTIVE_OFFER_FILTER} AND state <> '' AND city <> '' "
+        "ORDER BY state, city"
+    )
+    _db_log(f"list_offer_locations: querying {schema}.{table}")
+    with _connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(sql)
+            rows = [{"state": row[0], "city": row[1]} for row in cursor.fetchall()]
+    _db_log(f"list_offer_locations: returned {len(rows)} pairs")
+    return rows
+
+
+def list_public_offers(state: str, city: str) -> list[dict[str, Any]]:
+    """Return active offers for one city, without coupon codes."""
+    _reset_db_logs()
+    _, schema, table = _database_settings()
+    _db_log(f"list_public_offers: querying {schema}.{table} state={state!r} city={city!r}")
     sql = (
         f'SELECT id, url, price, location, store_name AS "storeName", '
         f'address_line1 AS "addressLine1", address_line2 AS "addressLine2", city, state, expires, '
         f'(code <> \'\') AS "hasCode" '
         f'FROM "{schema}"."{table}" '
-        "WHERE status = 'fetched' AND error = '' AND location <> '' "
-        "ORDER BY expires NULLS LAST, city, location"
+        f"WHERE {_ACTIVE_OFFER_FILTER} AND state = %s AND city = %s "
+        "ORDER BY expires NULLS LAST, location"
     )
     try:
         with _connect() as conn:
             with conn.cursor() as cursor:
                 _db_log("list_public_offers: executing SELECT")
-                cursor.execute(sql)
+                cursor.execute(sql, (state, city))
                 columns = [column.name for column in cursor.description]
                 rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
     except Exception as exc:
         _db_log(f"list_public_offers: failed ({type(exc).__name__}): {exc}")
         raise
-    _db_log(f"list_public_offers: returned {len(rows)} rows columns={columns}")
+    _db_log(f"list_public_offers: returned {len(rows)} rows")
     return rows
+
+
+def get_claim_details(offer_id: int) -> dict[str, Any] | None:
+    """Return coupon and offer copy for the claim page."""
+    _reset_db_logs()
+    _, schema, table = _database_settings()
+    _db_log(f"get_claim_details: id={offer_id} from {schema}.{table}")
+    sql = (
+        f'SELECT code AS coupon, price, location, city, state, expires '
+        f'FROM "{schema}"."{table}" '
+        f"WHERE id = %s AND {_ACTIVE_OFFER_FILTER}"
+    )
+    with _connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(sql, (offer_id,))
+            row = cursor.fetchone()
+            if not row:
+                _db_log("get_claim_details: not found")
+                return None
+            columns = [column.name for column in cursor.description]
+    details = dict(zip(columns, row))
+    _db_log("get_claim_details: found")
+    return details
 
 
 def get_coupon_code(offer_id: int) -> str | None:
     """Return a stored coupon code for a public offer identifier."""
-    _reset_db_logs()
-    _, schema, table = _database_settings()
-    _db_log(f"get_coupon_code: id={offer_id} from {schema}.{table}")
-    sql = (
-        f'SELECT code FROM "{schema}"."{table}" '
-        "WHERE id = %s AND status = 'fetched' AND error = ''"
-    )
-    try:
-        with _connect() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(sql, (offer_id,))
-                row = cursor.fetchone()
-    except Exception as exc:
-        _db_log(f"get_coupon_code: failed ({type(exc).__name__}): {exc}")
-        raise
-    found = bool(row and row[0])
-    _db_log(f"get_coupon_code: found={found}")
-    return row[0] if found else None
-
-
-recent_db_logs = recent_db_logs
+    details = get_claim_details(offer_id)
+    if not details:
+        return None
+    code = details.get("coupon")
+    return code if code else None

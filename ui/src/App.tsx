@@ -1,88 +1,84 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AdminPage } from './components/AdminPage';
+import { ClaimPage } from './components/ClaimPage';
 import { FilterBar } from './components/FilterBar';
 import { OffersTable } from './components/OffersTable';
-import { loadOffers } from './lib/offersApi';
+import { loadLocations, loadOffers } from './lib/offersApi';
 import type { Offer } from './types';
 import './App.css';
 
-const ALL = 'All';
-
 function App() {
+  const [states, setStates] = useState<string[]>([]);
+  const [citiesByState, setCitiesByState] = useState<Record<string, string[]>>({});
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedCity, setSelectedCity] = useState('');
   const [offers, setOffers] = useState<Offer[]>([]);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [locationsStatus, setLocationsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [offersStatus, setOffersStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
-  const [selectedState, setSelectedState] = useState(ALL);
-  const [selectedCity, setSelectedCity] = useState(ALL);
-  const [activeTab, setActiveTab] = useState<'offers' | 'admin'>('offers');
+  const [claimOfferId, setClaimOfferId] = useState<number | null>(null);
 
-  const reloadOffers = () => {
-    setStatus('loading');
-    setErrorMessage('');
-    loadOffers()
+  const cities = useMemo(
+    () => (selectedState ? citiesByState[selectedState] ?? [] : []),
+    [citiesByState, selectedState],
+  );
+
+  useEffect(() => {
+    loadLocations()
       .then((loaded) => {
-        setOffers(loaded);
-        setStatus('ready');
+        setStates(loaded.states ?? []);
+        setCitiesByState(loaded.citiesByState ?? {});
+        setLocationsStatus('ready');
       })
       .catch((err: unknown) => {
         setErrorMessage(err instanceof Error ? err.message : String(err));
-        setStatus('error');
+        setLocationsStatus('error');
       });
-  };
-
-  useEffect(() => {
-    reloadOffers();
   }, []);
 
-  const states = useMemo(
-    () => Array.from(new Set(offers.map((o) => o.state).filter(Boolean))).sort(),
-    [offers],
-  );
+  useEffect(() => {
+    if (!selectedState || !selectedCity) {
+      setOffers([]);
+      setOffersStatus('idle');
+      return;
+    }
 
-  const cities = useMemo(() => {
-    const inState = selectedState === ALL ? offers : offers.filter((o) => o.state === selectedState);
-    return Array.from(new Set(inState.map((o) => o.city).filter(Boolean))).sort();
-  }, [offers, selectedState]);
-
-  const filteredOffers = useMemo(
-    () =>
-      offers.filter(
-        (o) =>
-          (selectedState === ALL || o.state === selectedState) &&
-          (selectedCity === ALL || o.city === selectedCity),
-      ),
-    [offers, selectedState, selectedCity],
-  );
+    setOffersStatus('loading');
+    setErrorMessage('');
+    loadOffers(selectedState, selectedCity)
+      .then((loaded) => {
+        setOffers(loaded);
+        setOffersStatus('ready');
+      })
+      .catch((err: unknown) => {
+        setErrorMessage(err instanceof Error ? err.message : String(err));
+        setOffersStatus('error');
+      });
+  }, [selectedState, selectedCity]);
 
   const handleStateChange = (state: string) => {
     setSelectedState(state);
-    setSelectedCity(ALL);
+    setSelectedCity('');
   };
+
+  if (claimOfferId !== null) {
+    return (
+      <main className="app">
+        <h1>Great Clips Coupon Finder</h1>
+        <ClaimPage offerId={claimOfferId} onBack={() => setClaimOfferId(null)} />
+      </main>
+    );
+  }
 
   return (
     <main className="app">
       <h1>Great Clips Coupon Finder</h1>
 
-      <div className="tab-bar">
-        <button
-          type="button"
-          className={`tab-button ${activeTab === 'offers' ? 'active' : ''}`}
-          onClick={() => setActiveTab('offers')}
-        >
-          Offers
-        </button>
-        <button
-          type="button"
-          className={`tab-button ${activeTab === 'admin' ? 'active' : ''}`}
-          onClick={() => setActiveTab('admin')}
-        >
-          Admin
-        </button>
-      </div>
+      {locationsStatus === 'loading' && <p className="status-message">Loading locations&hellip;</p>}
+      {locationsStatus === 'error' && (
+        <p className="status-message error">Could not load locations: {errorMessage}.</p>
+      )}
 
-      {activeTab === 'admin' && <AdminPage onFetched={reloadOffers} />}
-
-      {activeTab === 'offers' && (
+      {locationsStatus === 'ready' && (
         <>
           <FilterBar
             states={states}
@@ -93,13 +89,19 @@ function App() {
             onCityChange={setSelectedCity}
           />
 
-          {status === 'loading' && <p className="status-message">Loading offers&hellip;</p>}
-          {status === 'error' && (
-            <p className="status-message error">
-              Could not load offers: {errorMessage}.
-            </p>
+          {!selectedState || !selectedCity ? (
+            <p className="prompt-message">Select a state and city to see available coupons.</p>
+          ) : (
+            <>
+              {offersStatus === 'loading' && <p className="status-message">Loading coupons&hellip;</p>}
+              {offersStatus === 'error' && (
+                <p className="status-message error">Could not load coupons: {errorMessage}.</p>
+              )}
+              {offersStatus === 'ready' && (
+                <OffersTable offers={offers} onClaim={setClaimOfferId} />
+              )}
+            </>
           )}
-          {status === 'ready' && <OffersTable offers={filteredOffers} />}
         </>
       )}
     </main>
@@ -107,4 +109,3 @@ function App() {
 }
 
 export default App;
-

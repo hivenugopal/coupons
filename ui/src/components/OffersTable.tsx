@@ -1,8 +1,8 @@
 import type { Offer } from '../types';
-import { ClaimButton } from './ClaimButton';
 
 interface OffersTableProps {
   offers: Offer[];
+  onClaim: (offerId: number) => void;
 }
 
 function formatLocation(offer: Offer): string {
@@ -15,9 +15,9 @@ function formatLocation(offer: Offer): string {
   return offer.location || [offer.storeName, offer.city, offer.state].filter(Boolean).join(' \u2014 ') || '-';
 }
 
-export function OffersTable({ offers }: OffersTableProps) {
+export function OffersTable({ offers, onClaim }: OffersTableProps) {
   if (offers.length === 0) {
-    return <p className="empty-state">No offers match the selected filters.</p>;
+    return <p className="empty-state">No active coupons found for the selected city.</p>;
   }
 
   return (
@@ -25,19 +25,21 @@ export function OffersTable({ offers }: OffersTableProps) {
       <thead>
         <tr>
           <th>Location</th>
-          <th>Discount</th>
+          <th>Price/Discount</th>
           <th>Expires</th>
           <th>Coupon</th>
         </tr>
       </thead>
       <tbody>
-        {offers.map((offer, index) => (
-          <tr key={`${offer.url}-${index}`}>
+        {offers.map((offer) => (
+          <tr key={offer.id}>
             <td>{formatLocation(offer)}</td>
             <td>{offer.price || '-'}</td>
             <td>{offer.expires || '-'}</td>
             <td>
-              <ClaimButton offerId={offer.id} hasCode={offer.hasCode} />
+              <button type="button" className="claim-link" onClick={() => onClaim(offer.id)}>
+                Claim
+              </button>
             </td>
           </tr>
         ))}

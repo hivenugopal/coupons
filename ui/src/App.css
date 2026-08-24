@@ -169,9 +169,53 @@
   font-style: italic;
 }
 
-.claim-error {
-  display: block;
-  margin-top: 4px;
-  color: #b00020;
-  font-size: 12px;
+.prompt-message {
+  color: #444;
+  font-size: 16px;
+  margin: 8px 0 24px;
+}
+
+.claim-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #1a73e8;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.claim-link:hover {
+  color: #1558b0;
+}
+
+.claim-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.back-link {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #1a73e8;
+  font: inherit;
+  cursor: pointer;
+}
+
+.claim-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  line-height: 1.5;
+}
+
+.claim-card p {
+  margin: 0;
 }
