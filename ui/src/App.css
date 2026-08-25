@@ -219,3 +219,19 @@
 .claim-card p {
   margin: 0;
 }
+
+.claim-email {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.claim-email input {
+  max-width: 420px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 400;
+}

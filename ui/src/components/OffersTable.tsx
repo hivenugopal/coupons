@@ -3,6 +3,7 @@ import type { Offer } from '../types';
 interface OffersTableProps {
   offers: Offer[];
   onClaim: (offerId: number) => void;
+  onClickOffer: (offerId: number) => void;
 }
 
 function formatLocation(offer: Offer): string {
@@ -15,7 +16,7 @@ function formatLocation(offer: Offer): string {
   return offer.location || [offer.storeName, offer.city, offer.state].filter(Boolean).join(' \u2014 ') || '-';
 }
 
-export function OffersTable({ offers, onClaim }: OffersTableProps) {
+export function OffersTable({ offers, onClaim, onClickOffer }: OffersTableProps) {
   if (offers.length === 0) {
     return <p className="empty-state">No active coupons found for the selected city.</p>;
   }
@@ -39,6 +40,10 @@ export function OffersTable({ offers, onClaim }: OffersTableProps) {
             <td>
               <button type="button" className="claim-link" onClick={() => onClaim(offer.id)}>
                 Claim
+              </button>
+              {' · '}
+              <button type="button" className="claim-link" onClick={() => onClickOffer(offer.id)}>
+                Click
               </button>
             </td>
           </tr>

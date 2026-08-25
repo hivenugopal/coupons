@@ -277,6 +277,41 @@ def get_claim_details(offer_id: int) -> dict[str, Any] | None:
     return details
 
 
+def record_user_claim(offer_id: int, email: str) -> dict[str, Any] | None:
+    """Record a click for an active offer and return its canonical redirect URL.
+
+    The URL is always read from the offer table rather than accepted from the
+    browser. A code is intentionally not copied into this record: the user
+    follows the provider's own redemption flow after this action.
+    """
+    _reset_db_logs()
+    _, schema, table = _database_settings()
+    claims_table = _env_identifier("DB_CLAIMS_TABLE", "user_claims", "claims table")
+    select_sql = (
+        f'SELECT url FROM "{schema}"."{table}" '
+        f"WHERE id = %s AND {_ACTIVE_OFFER_FILTER}"
+    )
+    insert_sql = (
+        f'INSERT INTO "{schema}"."{claims_table}" (email, cid, url, coupon_code) '
+        "VALUES (%s, %s, %s, NULL) RETURNING id, date_clicked"
+    )
+    _db_log(f"record_user_claim: offer_id={offer_id} into {schema}.{claims_table}")
+    with _connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(select_sql, (offer_id,))
+            offer = cursor.fetchone()
+            if not offer:
+                _db_log("record_user_claim: active offer not found")
+                return None
+            url = offer[0]
+            cursor.execute(insert_sql, (email, offer_id, url))
+            claim = cursor.fetchone()
+            columns = [column.name for column in cursor.description]
+        conn.commit()
+    _db_log("record_user_claim: committed")
+    return {"url": url, **dict(zip(columns, claim))}
+
+
 def get_coupon_code(offer_id: int) -> str | None:
     """Return a stored coupon code for a public offer identifier."""
     details = get_claim_details(offer_id)

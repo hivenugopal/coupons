@@ -14,6 +14,12 @@ export interface ClaimDetails {
   expires: string;
 }
 
+export interface ClickClaimResponse {
+  claim_id: number;
+  date_clicked: string;
+  redirect_url: string;
+}
+
 export async function loadLocations(): Promise<LocationOptions> {
   const response = await fetch('/api/offers');
   if (!response.ok) {
@@ -44,4 +50,17 @@ export async function fetchClaimDetails(offerId: number): Promise<ClaimDetails> 
 export async function fetchCouponCode(offerId: number): Promise<string> {
   const details = await fetchClaimDetails(offerId);
   return details.coupon;
+}
+
+export async function recordClickClaim(offerId: number, email: string): Promise<ClickClaimResponse> {
+  const response = await fetch('/api/claims', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ offer_id: offerId, email }),
+  });
+  const payload = (await response.json()) as ClickClaimResponse & { error?: string; ok?: boolean };
+  if (!response.ok || !payload.ok || !payload.redirect_url) {
+    throw new Error(payload.error || `Could not record click (${response.status}).`);
+  }
+  return payload;
 }

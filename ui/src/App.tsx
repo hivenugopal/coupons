@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ClaimPage } from './components/ClaimPage';
+import { ClickClaimPage } from './components/ClickClaimPage';
 import { FilterBar } from './components/FilterBar';
 import { OffersTable } from './components/OffersTable';
 import { loadLocations, loadOffers } from './lib/offersApi';
@@ -16,6 +17,7 @@ function App() {
   const [offersStatus, setOffersStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [claimOfferId, setClaimOfferId] = useState<number | null>(null);
+  const [clickOfferId, setClickOfferId] = useState<number | null>(null);
 
   const cities = useMemo(
     () => (selectedState ? citiesByState[selectedState] ?? [] : []),
@@ -69,6 +71,15 @@ function App() {
     );
   }
 
+  if (clickOfferId !== null) {
+    return (
+      <main className="app">
+        <h1>Great Clips Coupon Finder</h1>
+        <ClickClaimPage offerId={clickOfferId} onBack={() => setClickOfferId(null)} />
+      </main>
+    );
+  }
+
   return (
     <main className="app">
       <h1>Great Clips Coupon Finder</h1>
@@ -98,7 +109,7 @@ function App() {
                 <p className="status-message error">Could not load coupons: {errorMessage}.</p>
               )}
               {offersStatus === 'ready' && (
-                <OffersTable offers={offers} onClaim={setClaimOfferId} />
+                <OffersTable offers={offers} onClaim={setClaimOfferId} onClickOffer={setClickOfferId} />
               )}
             </>
           )}
