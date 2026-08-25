@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { EMAIL_ERROR, isValidEmail, normalizeEmail } from '../lib/email';
 import { recordClickClaim } from '../lib/offersApi';
 
 interface ClickClaimPageProps {
@@ -15,11 +16,18 @@ export function ClickClaimPage({ offerId, onBack }: ClickClaimPageProps) {
 
   const proceed = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const cleanedEmail = normalizeEmail(email);
+    if (!isValidEmail(cleanedEmail)) {
+      setStatus('error');
+      setErrorMessage(EMAIL_ERROR);
+      return;
+    }
+
     setStatus('submitting');
     setErrorMessage('');
 
     try {
-      const claim = await recordClickClaim(offerId, email);
+      const claim = await recordClickClaim(offerId, cleanedEmail);
       const opened = window.open(claim.redirect_url, '_blank', 'noopener,noreferrer');
       setOpenedUrl(claim.redirect_url);
       setPopupBlocked(!opened);
@@ -36,7 +44,7 @@ export function ClickClaimPage({ offerId, onBack }: ClickClaimPageProps) {
         Back to offers
       </button>
       <h2>Continue to Great Clips</h2>
-      <form className="claim-card" onSubmit={proceed}>
+      <form className="claim-card" onSubmit={proceed} noValidate>
         <label className="claim-email">
           <span>Email address</span>
           <input
@@ -45,6 +53,8 @@ export function ClickClaimPage({ offerId, onBack }: ClickClaimPageProps) {
             onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
             required
+            spellCheck={false}
+            inputMode="email"
             disabled={status === 'submitting' || status === 'opened'}
           />
         </label>

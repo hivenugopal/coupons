@@ -7,8 +7,8 @@ from couponfinder.claims import validate_claim_payload
 @pytest.mark.parametrize(
     ("payload", "expected"),
     [
-        ({"offer_id": 7, "email": "User@Example.com "}, (7, "user@example.com")),
-        ({"offer_id": "12", "email": "user@example.com"}, (12, "user@example.com")),
+        ({"offer_id": 7, "email": "Jane.Doe+tag@Gmail.com "}, (7, "jane.doe+tag@gmail.com")),
+        ({"offer_id": "12", "email": "first.last@company.co.uk"}, (12, "first.last@company.co.uk")),
     ],
 )
 def test_validate_claim_payload_accepts_offer_id_and_email(payload, expected):
@@ -19,10 +19,17 @@ def test_validate_claim_payload_accepts_offer_id_and_email(payload, expected):
     "payload",
     [
         {},
-        {"offer_id": 0, "email": "user@example.com"},
-        {"offer_id": True, "email": "user@example.com"},
+        {"offer_id": 0, "email": "jane.doe@gmail.com"},
+        {"offer_id": True, "email": "jane.doe@gmail.com"},
         {"offer_id": 1, "email": "not-an-email"},
         {"offer_id": 1, "email": ""},
+        {"offer_id": 1, "email": "abc@abc.abc"},
+        {"offer_id": 1, "email": "user@example.com"},
+        {"offer_id": 1, "email": "test@mail.com"},
+        {"offer_id": 1, "email": "a@b.c"},
+        {"offer_id": 1, "email": "name@localhost"},
+        {"offer_id": 1, "email": "jane@domain.c"},
+        {"offer_id": 1, "email": "jane@domain.123"},
     ],
 )
 def test_validate_claim_payload_rejects_invalid_values(payload):
