@@ -8,8 +8,10 @@ interface ClickClaimPageProps {
 
 export function ClickClaimPage({ offerId, onBack }: ClickClaimPageProps) {
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'opened' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [openedUrl, setOpenedUrl] = useState('');
+  const [popupBlocked, setPopupBlocked] = useState(false);
 
   const proceed = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -18,7 +20,10 @@ export function ClickClaimPage({ offerId, onBack }: ClickClaimPageProps) {
 
     try {
       const claim = await recordClickClaim(offerId, email);
-      window.location.assign(claim.redirect_url);
+      const opened = window.open(claim.redirect_url, '_blank', 'noopener,noreferrer');
+      setOpenedUrl(claim.redirect_url);
+      setPopupBlocked(!opened);
+      setStatus('opened');
     } catch (error) {
       setStatus('error');
       setErrorMessage(error instanceof Error ? error.message : String(error));
@@ -40,16 +45,31 @@ export function ClickClaimPage({ offerId, onBack }: ClickClaimPageProps) {
             onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
             required
+            disabled={status === 'submitting' || status === 'opened'}
           />
         </label>
         <p>
           When you proceed, we record your email address, the selected offer, its Great Clips URL, and
-          the time you clicked. You will then complete redemption directly on the Great Clips website.
+          the time you clicked. The Great Clips offer then opens in a new tab so you can print the coupon.
         </p>
-        <button type="submit" className="claim-button" disabled={status === 'submitting'}>
-          {status === 'submitting' ? 'Opening Great Clips...' : 'Proceed'}
-        </button>
+        {status === 'opened' ? (
+          <button type="button" className="claim-button" onClick={onBack}>
+            Back to Offers page
+          </button>
+        ) : (
+          <button type="submit" className="claim-button" disabled={status === 'submitting'}>
+            {status === 'submitting' ? 'Opening Great Clips...' : 'Proceed'}
+          </button>
+        )}
         {errorMessage && <p className="status-message error">{errorMessage}</p>}
+        {popupBlocked && openedUrl && (
+          <p className="status-message error">
+            The offer tab was blocked.{' '}
+            <a href={openedUrl} target="_blank" rel="noopener noreferrer">
+              Open Great Clips offer
+            </a>
+          </p>
+        )}
       </form>
     </section>
   );
