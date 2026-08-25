@@ -2,7 +2,6 @@ import type { Offer } from '../types';
 
 interface OffersTableProps {
   offers: Offer[];
-  onClaim: (offerId: number) => void;
   onClickOffer: (offerId: number) => void;
 }
 
@@ -16,7 +15,7 @@ function formatLocation(offer: Offer): string {
   return offer.location || [offer.storeName, offer.city, offer.state].filter(Boolean).join(' \u2014 ') || '-';
 }
 
-export function OffersTable({ offers, onClaim, onClickOffer }: OffersTableProps) {
+export function OffersTable({ offers, onClickOffer }: OffersTableProps) {
   if (offers.length === 0) {
     return (
       <p className="empty-panel empty-state">No active coupons found for the selected city.</p>
@@ -27,7 +26,7 @@ export function OffersTable({ offers, onClaim, onClickOffer }: OffersTableProps)
     <section className="table-card">
       <div className="table-banner">
         <span>
-          {offers.length} deal{offers.length === 1 ? '' : 's'} ready to claim
+          {offers.length} deal{offers.length === 1 ? '' : 's'} ready
         </span>
         <strong>Limited-time salon offers</strong>
       </div>
@@ -50,15 +49,12 @@ export function OffersTable({ offers, onClaim, onClickOffer }: OffersTableProps)
               <td>{offer.expires || '-'}</td>
               <td>
                 <div className="action-row">
-                  <button type="button" className="claim-link" onClick={() => onClaim(offer.id)}>
-                    Claim
-                  </button>
                   <button
                     type="button"
-                    className="claim-link secondary"
+                    className="claim-link"
                     onClick={() => onClickOffer(offer.id)}
                   >
-                    Click
+                    Claim Offer
                   </button>
                 </div>
               </td>

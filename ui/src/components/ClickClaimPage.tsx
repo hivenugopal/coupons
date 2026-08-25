@@ -45,7 +45,7 @@ export function ClickClaimPage({ offerId, onBack }: ClickClaimPageProps) {
       </button>
       <h2>Continue to Great Clips</h2>
       <p className="warn-banner">
-        Enter your email, then Proceed. We save the click and open the salon offer in a new tab.
+        Enter your email, then Proceed. We open the salon offer in a new tab.
       </p>
       <form className="claim-card" onSubmit={proceed} noValidate>
         <label className="claim-email">
@@ -61,10 +61,6 @@ export function ClickClaimPage({ offerId, onBack }: ClickClaimPageProps) {
             disabled={status === 'submitting' || status === 'opened'}
           />
         </label>
-        <p>
-          When you proceed, we record your email address, the selected offer, its Great Clips URL, and
-          the time you clicked. The Great Clips offer then opens in a new tab so you can print the coupon.
-        </p>
         {status === 'opened' ? (
           <button type="button" className="claim-button" onClick={onBack}>
             Back to Offers page

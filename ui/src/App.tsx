@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ClaimPage } from './components/ClaimPage';
 import { ClickClaimPage } from './components/ClickClaimPage';
 import { FilterBar } from './components/FilterBar';
 import { OffersTable } from './components/OffersTable';
@@ -18,7 +17,7 @@ function PageShell({
   return (
     <div className="page">
       <SiteBanner title="Great Clips Coupon Finder" subtitle={subtitle} />
-      <div className="promo-strip">Haircut specials near you. Claim a code here or print it at Great Clips.</div>
+      <div className="promo-strip">Haircut specials near you. Print the coupon at Great Clips.</div>
       <main className="app">{children}</main>
     </div>
   );
@@ -33,7 +32,6 @@ function App() {
   const [locationsStatus, setLocationsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [offersStatus, setOffersStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
-  const [claimOfferId, setClaimOfferId] = useState<number | null>(null);
   const [clickOfferId, setClickOfferId] = useState<number | null>(null);
 
   const cities = useMemo(
@@ -79,14 +77,6 @@ function App() {
     setSelectedCity('');
   };
 
-  if (claimOfferId !== null) {
-    return (
-      <PageShell subtitle="Show this coupon at checkout. One offer per customer.">
-        <ClaimPage offerId={claimOfferId} onBack={() => setClaimOfferId(null)} />
-      </PageShell>
-    );
-  }
-
   if (clickOfferId !== null) {
     return (
       <PageShell subtitle="We'll open the Great Clips offer so you can print the coupon.">
@@ -124,7 +114,7 @@ function App() {
                 <p className="error-banner">Could not load coupons: {errorMessage}.</p>
               )}
               {offersStatus === 'ready' && (
-                <OffersTable offers={offers} onClaim={setClaimOfferId} onClickOffer={setClickOfferId} />
+                <OffersTable offers={offers} onClickOffer={setClickOfferId} />
               )}
             </>
           )}
