@@ -44,6 +44,9 @@ export function ClickClaimPage({ offerId, onBack }: ClickClaimPageProps) {
         Back to offers
       </button>
       <h2>Continue to Great Clips</h2>
+      <p className="warn-banner">
+        Enter your email, then Proceed. We save the click and open the salon offer in a new tab.
+      </p>
       <form className="claim-card" onSubmit={proceed} noValidate>
         <label className="claim-email">
           <span>Email address</span>
@@ -71,14 +74,17 @@ export function ClickClaimPage({ offerId, onBack }: ClickClaimPageProps) {
             {status === 'submitting' ? 'Opening Great Clips...' : 'Proceed'}
           </button>
         )}
-        {errorMessage && <p className="status-message error">{errorMessage}</p>}
+        {errorMessage && <p className="error-banner">{errorMessage}</p>}
         {popupBlocked && openedUrl && (
-          <p className="status-message error">
+          <p className="error-banner">
             The offer tab was blocked.{' '}
             <a href={openedUrl} target="_blank" rel="noopener noreferrer">
               Open Great Clips offer
             </a>
           </p>
+        )}
+        {status === 'opened' && !popupBlocked && (
+          <p className="success-banner">Great Clips opened in a new tab. Print the coupon there.</p>
         )}
       </form>
     </section>

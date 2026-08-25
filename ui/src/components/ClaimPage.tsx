@@ -43,14 +43,15 @@ export function ClaimPage({ offerId, onBack }: ClaimPageProps) {
         Back to offers
       </button>
 
-      {!details && !errorMessage && <p className="status-message">Loading coupon&hellip;</p>}
-      {errorMessage && <p className="status-message error">{errorMessage}</p>}
+      {!details && !errorMessage && <p className="info-banner">Loading coupon&hellip;</p>}
+      {errorMessage && <p className="error-banner">{errorMessage}</p>}
 
       {details && (
         <article className="claim-card">
-          <p>
-            <strong>Coupon:</strong> {details.coupon}
-          </p>
+          <div className="coupon-banner">
+            <h2>Your coupon</h2>
+          </div>
+          <p className="coupon-code">{details.coupon}</p>
           <p>
             <strong>Haircut for:</strong> {details.price || '-'}
           </p>
