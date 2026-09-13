@@ -50,15 +50,15 @@ export function ClickClaimPage({ offerId, onBack }: ClickClaimPageProps) {
       </button>
       <h2>Continue to Great Clips</h2>
       <ul className="warn-banner claim-steps">
-        <li>Enter your email, then Proceed. We open the salon offer in a new tab.</li>
-        <li>Check if it's valid in your location by looking at the details.</li>
-        <li>Check if today the offer is still valid or expired.</li>
+        <li>Enter your email, then select Proceed. We will open the salon offer in a new tab.</li>
+        <li>Check the offer details carefully and see if it is valid in your location.</li>
+        <li>Check whether the offer is still valid or has expired.</li>
         <li>
-          At the Great Clips salon, show your coupon when paying. You can use your phone for a
-          digital copy or take the print out.
+          At the Great Clips salon, show your coupon when you pay. You can use your phone for a
+          digital copy or bring a printout.
         </li>
         <li>
-          Note: This great deal is only available at select locations, so check if your local salon
+          Note: This offer is only available at select locations, so check whether your local salon
           accepts it.
         </li>
       </ul>
