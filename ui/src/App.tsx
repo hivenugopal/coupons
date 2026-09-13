@@ -86,7 +86,7 @@ function App() {
   }
 
   return (
-    <PageShell subtitle="Pick a location to see current haircut prices and expiration dates.">
+    <PageShell subtitle="Pick a location to see haircut deals">
       {locationsStatus === 'loading' && <p className="info-banner">Loading locations&hellip;</p>}
       {locationsStatus === 'error' && (
         <p className="error-banner">Could not load locations: {errorMessage}.</p>
