@@ -122,6 +122,20 @@
   border: 1px solid #f0d98a;
 }
 
+ul.claim-steps {
+  list-style: disc;
+  padding-left: 34px;
+}
+
+ul.claim-steps li {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+ul.claim-steps li:last-child {
+  margin-bottom: 0;
+}
+
 .success-banner {
   background: #e7f7ee;
   color: var(--success);
