@@ -107,6 +107,7 @@
   padding: 12px 14px;
   margin: 0 0 18px;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .info-banner {

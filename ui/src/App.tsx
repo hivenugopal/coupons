@@ -9,15 +9,17 @@ import './App.css';
 
 function PageShell({
   subtitle,
+  promo = 'Haircut specials near you. Print the coupon at Great Clips.',
   children,
 }: {
   subtitle: string;
+  promo?: string;
   children: ReactNode;
 }) {
   return (
     <div className="page">
       <SiteBanner title="Great Clips Coupon Finder" subtitle={subtitle} />
-      <div className="promo-strip">Haircut specials near you. Print the coupon at Great Clips.</div>
+      <div className="promo-strip">{promo}</div>
       <main className="app">{children}</main>
     </div>
   );
@@ -79,7 +81,10 @@ function App() {
 
   if (clickOfferId !== null) {
     return (
-      <PageShell subtitle="We'll open the Great Clips offer so you can print the coupon.">
+      <PageShell
+        subtitle="We'll open the Great Clips offer so you can print the coupon."
+        promo="Haircut specials near you. Get discount at Great Clips."
+      >
         <ClickClaimPage offerId={clickOfferId} onBack={() => setClickOfferId(null)} />
       </PageShell>
     );

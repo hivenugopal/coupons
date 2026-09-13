@@ -73,9 +73,9 @@ export function ClickClaimPage({ offerId, onBack }: ClickClaimPageProps) {
         {errorMessage && <p className="error-banner">{errorMessage}</p>}
         {popupBlocked && openedUrl && (
           <p className="error-banner">
-            The offer tab was blocked.{' '}
+            The offer tab was blocked, enable your browser pop up settings for seamless access or Open{' '}
             <a href={openedUrl} target="_blank" rel="noopener noreferrer">
-              Open Great Clips offer
+              {openedUrl}
             </a>
           </p>
         )}

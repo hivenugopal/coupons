@@ -205,7 +205,8 @@ def insert_coupon_rows(rows: list[dict[str, Any]]) -> int:
 
 _ACTIVE_OFFER_FILTER = (
     "status = 'fetched' AND COALESCE(status, '') <> 'inactive' AND error = '' "
-    "AND location <> '' AND code IS NOT NULL AND BTRIM(code) <> ''"
+    "AND location <> '' AND code IS NOT NULL AND BTRIM(code) <> '' "
+    "AND (expires IS NULL OR expires >= CURRENT_DATE)"
 )
 
 

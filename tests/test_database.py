@@ -21,6 +21,10 @@ def test_rows_to_db_records_sets_status_and_normalizes_expiry():
     assert records[1]["status"] == "failed"
 
 
+def test_active_offer_filter_excludes_expired_dates():
+    assert "expires IS NULL OR expires >= CURRENT_DATE" in database._ACTIVE_OFFER_FILTER
+
+
 def test_safe_url_summary_omits_password():
     summary = _safe_url_summary(
         "postgresql://postgres.abc:secret-pass@aws-0-us-west-2.pooler.supabase.com:6543/postgres"
